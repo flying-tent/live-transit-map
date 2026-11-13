@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>運行状況マップ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#cdeefd; --land:#f7f9fa; --ink:#1f2a33; --sub:#6b7a86;
+    --delay:#ffc81e; --suspend:#ff2d3d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:"Noto Sans JP","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:var(--ink);background:#eef4f7;display:flex;flex-direction:column}
+  header{background:var(--sky);padding:10px 14px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
+  .titlebox{display:flex;align-items:center;gap:8px}
+  #back{border:none;background:#fff;border-radius:50%;width:34px;height:34px;font-size:20px;font-weight:900;cursor:pointer;display:grid;place-items:center;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  #back[hidden]{display:none}
+  .crumb{font-size:12px;color:var(--sub);font-weight:700}
+  h1{font-size:17px;margin:0;font-weight:900;letter-spacing:.02em}
+  .hright{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:flex-start}
+  .updated{font-size:12px;color:var(--sub);white-space:nowrap}
+  .legend{display:flex;gap:16px;align-items:center;font-weight:700;font-size:14px}
+  .legend[hidden]{display:none}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .chip{width:30px;height:10px;border-radius:6px;background:var(--ink)}
+  .chip.delay{box-shadow:0 0 0 3px var(--delay),0 0 10px 4px var(--delay)}
+  .chip.suspend{box-shadow:0 0 0 3px var(--suspend),0 0 10px 4px var(--suspend)}
+
+  .view{flex:1;min-height:0;display:none}
+  .view.on{display:flex}
+
+  /* 選択画面 */
+  #view-select{overflow:auto;justify-content:center}
+  .pick{width:min(860px,100%);padding:16px 14px 40px}
+  .pick h2{font-size:14px;color:var(--sub);margin:18px 4px 10px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .card{background:#fff;border:1px solid #dbe5ea;border-radius:14px;padding:14px;cursor:pointer;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px;min-height:84px;transition:transform .1s,box-shadow .1s}
+  .card:hover{box-shadow:0 4px 14px rgba(0,60,90,.1)}
+  .card:active{transform:translateY(1px)}
+  .card.wide{grid-column:1/-1;flex-direction:row;align-items:center;min-height:72px}
+  .card .nm{font-size:18px;font-weight:900}
+  .card .sb{font-size:12px;color:var(--sub)}
+  .card .sum{display:flex;gap:6px;flex-wrap:wrap;margin-top:auto}
+  .card.wide .sum{margin:0 0 0 auto}
+  .card.soon{cursor:default;background:#f4f7f9;color:#9aa7b1;box-shadow:none}
+  .card.soon .nm{color:#9aa7b1}
+  .card .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:15px;flex:none}
+  .rhead{display:flex;align-items:center;gap:10px}
+  .card .ico.rg{width:46px;height:46px;overflow:hidden;padding:0}
+  .status{flex:none;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .st-normal{background:#e8f3ec;color:#2f7a48}
+  .st-delay{background:#fff3c4;color:#7a5b00}
+  .st-suspend{background:#ffe0e3;color:#b0101f}
+  .st-soon{background:#e9eef1;color:#8a98a3}
+
+  /* 路線図 */
+  #mapWrap{flex:1;overflow:auto;position:relative;background:var(--land);-webkit-overflow-scrolling:touch}
+  #map{display:block}
+  #soon{flex:1;display:none;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--sub);font-weight:700}
+  .zoom{position:fixed;right:12px;bottom:14px;display:flex;flex-direction:column;gap:6px;z-index:5}
+  .zoom button{width:40px;height:40px;border:1px solid #9cc7dc;background:#fff;border-radius:50%;font:inherit;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  aside{width:340px;overflow:auto;background:#fff;border-left:1px solid #dde6eb}
+  aside h2{font-size:14px;margin:0;padding:12px 14px 6px;color:var(--sub)}
+  .row{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-top:1px solid #eef2f4;cursor:pointer}
+  .row:hover{background:#f5f9fb}
+  .row.sel{background:#eaf5fb}
+  .row .status{margin-left:auto}
+  .sym{flex:none;min-width:30px;height:22px;border-radius:5px;color:#fff;font-size:12px;font-weight:900;display:grid;place-items:center;padding:0 5px}
+  .row .name{font-weight:700;font-size:14px}
+  .row .sec{font-size:12px;color:var(--sub);margin-top:2px}
+  @keyframes blink{0%{opacity:1}75%{opacity:0}100%{opacity:0}}
+  .glow.suspend{animation:blink 2s step-end infinite}
+  .hit{cursor:pointer}
+  #sheet{visibility:hidden;position:fixed;left:50%;bottom:0;transform:translate(-50%,110%);transition:transform .25s ease;width:min(520px,100%);background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.18);padding:16px 18px 22px;z-index:10}
+  #sheet.open{transform:translate(-50%,0);visibility:visible}
+  #sheet .head{display:flex;align-items:center;gap:10px}
+  #sheet .title{font-weight:900;font-size:17px}
+  #sheet .close{margin-left:auto;border:none;background:none;font-size:22px;padding:2px 8px;cursor:pointer}
+  #sheet .body{margin-top:10px;font-size:14px;line-height:1.7}
+  #sheet .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--sub);margin-top:6px}
+  #sheet .item+.item{border-top:1px solid #eef2f4;margin-top:10px;padding-top:10px}
+  #notice{background:#fff6d6;color:#6b5200;font-size:12px;padding:6px 14px;border-bottom:1px solid #f0e2a8}
+  #notice[hidden]{display:none}
+  .credit{font-size:11px;color:#8a98a3;padding:12px 14px 80px;line-height:1.6;margin:0}
+  #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 14px;border-radius:10px;font-size:13px;max-width:92%;display:none;z-index:20;white-space:pre-line}
+  @media (max-width:820px){
+    #view-map{flex-direction:column}
+    #mapWrap{flex:none;height:62vh}
+    aside{width:auto;border-left:none;border-top:1px solid #dde6eb;flex:1}
+    .zoom{bottom:auto;top:calc(62vh - 60px)}
+    header{padding:8px 12px;gap:6px 14px}
+    header{flex-wrap:nowrap}
+    .legend{font-size:12px;gap:4px;flex-direction:column;align-items:flex-start}
+    .updated{font-size:11px}
+    .chip{width:22px;height:8px}
+    .cards{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebox">
+    <button id="back" aria-label="戻る" hidden>‹</button>
+    <div>
+      <div class="crumb" id="crumb"></div>
+      <h1 id="title">運行状況マップ</h1>
+    </div>
+  </div>
+  <div class="hright">
+    <div class="updated" id="updated"></div>
+    <div class="legend" id="legend" hidden>
+      <span><i class="chip suspend"></i>止まっている区間</span>
+      <span><i class="chip delay"></i>遅れている区間など</span>
+    </div>
+  </div>
+</header>
+
+<div id="notice" hidden></div>
+<div class="view" id="view-select"><div class="pick" id="pick"></div></div>
+
+<div class="view" id="view-map">
+  <div id="mapWrap"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="soon"><div style="font-size:40px">🚧</div><div>この路線図は準備中です</div></div>
+  <aside id="aside"><h2>路線一覧</h2><div id="list"></div><p class="credit">運行情報の出典：公共交通オープンデータセンター、JR西日本 ほか各社。表示内容の正確性・即時性は保証されません。最新の情報は各社の公式発表を確認してください。</p></aside>
+  <div class="zoom" id="zoom">
+    <button id="zin" aria-label="拡大">＋</button>
+    <button id="zout" aria-label="縮小">－</button>
+    <button id="zfit" aria-label="全体表示" style="font-size:13px">全体</button>
+  </div>
+</div>
+<div id="sheet"></div>
+<div id="toast"></div>
+
+<!--
+  運行情報は GitHub Actions が自動で作る status.json から読み込みます（2分ごとに再読み込み）。
+  status.json を読めないとき（ファイルを直接開いた場合など）は、下の内容を表示します。
+  書式は README.md の「status.json の書式」を参照してください。
+-->
+<script type="application/json" id="status-data">
+{"updatedAt": null, "incidents": []}
+</script>
+
+<script>
+// =====================================================================
+//  地域・種別
+// =====================================================================
+const REGIONS=[
+  {id:'hokkaido',name:'北海道',sub:'札幌'},
+  {id:'tohoku',name:'東北',sub:'仙台'},
+  {id:'shutoken',name:'首都圏',sub:'東京・神奈川・埼玉・千葉'},
+  {id:'tokai',name:'東海',sub:'名古屋'},
+  {id:'kansai',name:'関西',sub:'大阪・京都・神戸'},
+  {id:'chugoku',name:'中国',sub:'広島'},
+  {id:'kyushu',name:'九州',sub:'福岡'},
+];
+// 地域アイコン（簡略化した海岸線。座標は経度・緯度から作成）
+const JP_LAND='M552 -946Q561 -952 588 -921Q615 -890 643 -860Q671 -830 712 -815Q752 -800 773 -798Q793 -795 815 -815Q837 -835 827 -798Q817 -760 837 -748Q858 -735 841 -720Q825 -705 793 -700Q760 -695 734 -678Q708 -660 690 -630Q671 -600 639 -615Q607 -630 570 -645Q534 -660 510 -648Q485 -635 465 -645Q445 -655 441 -652Q437 -650 445 -630Q453 -610 477 -595Q502 -580 481 -577Q461 -575 441 -558Q421 -540 417 -562Q413 -585 402 -615Q392 -645 413 -688Q433 -730 459 -725Q485 -720 498 -723Q510 -725 524 -760Q538 -795 540 -868Q542 -940 552 -946ZM429 -507Q433 -525 445 -505Q457 -485 469 -495Q481 -505 491 -497Q502 -490 502 -505Q502 -520 491 -537Q481 -553 502 -548Q523 -543 521 -507Q518 -470 524 -460Q530 -450 547 -407Q565 -365 561 -346Q558 -327 546 -309Q534 -290 530 -260Q526 -230 506 -227Q485 -225 483 -202Q481 -180 479 -140Q477 -100 473 -93Q469 -87 463 -73Q457 -60 455 -45Q453 -30 464 -1Q475 27 456 54Q437 80 433 82Q429 85 412 98Q395 110 393 90Q391 70 402 55Q413 40 400 38Q388 35 382 45Q376 55 375 70Q374 85 371 78Q368 70 352 73Q336 75 334 80Q332 85 331 88Q330 90 332 97Q334 105 327 119Q320 133 316 136Q311 140 307 125Q303 110 307 100Q311 90 297 95Q283 100 272 120Q261 140 239 136Q218 132 190 137Q162 142 174 134Q186 125 170 127Q154 130 152 112Q150 95 142 100Q133 105 138 127Q142 150 148 152Q154 155 152 162Q150 170 123 182Q97 193 89 211Q81 228 72 241Q62 255 45 243Q28 232 20 206Q12 180 24 162Q36 145 36 139Q35 132 25 132Q16 132 7 134Q-2 135 -14 128Q-26 122 -39 125Q-53 128 -69 137Q-85 145 -108 151Q-131 157 -138 159Q-146 160 -172 169Q-198 178 -202 172Q-206 165 -216 175Q-227 185 -243 191Q-259 197 -281 201Q-303 205 -316 205Q-329 205 -330 188Q-332 170 -311 164Q-291 158 -273 145Q-255 132 -246 121Q-237 110 -215 84Q-193 57 -177 51Q-162 45 -152 45Q-142 45 -103 45Q-65 45 -53 42Q-40 38 -28 37Q-16 35 0 29Q16 22 22 36Q28 50 32 48Q36 45 61 40Q85 35 81 20Q77 5 83 -8Q89 -20 109 -40Q129 -60 136 -75Q142 -90 148 -115Q154 -140 172 -145Q190 -150 174 -127Q158 -105 159 -95Q159 -85 169 -80Q178 -75 204 -90Q231 -105 247 -111Q263 -118 275 -127Q287 -137 307 -164Q328 -192 344 -207Q360 -222 364 -238Q368 -255 379 -273Q391 -292 400 -326Q409 -360 394 -378Q380 -395 392 -408Q405 -420 402 -443Q399 -465 412 -477Q425 -490 429 -507ZM-93 175Q-77 165 -55 172Q-32 180 -33 188Q-34 195 -28 206Q-22 217 -44 246Q-66 275 -92 262Q-117 250 -140 289Q-162 328 -174 318Q-186 308 -192 293Q-198 278 -220 272Q-243 265 -225 259Q-206 253 -196 234Q-186 215 -174 204Q-162 192 -150 198Q-138 205 -123 195Q-109 185 -93 175ZM-317 222Q-326 205 -333 205Q-340 205 -358 222Q-376 240 -384 240Q-392 240 -400 246Q-409 252 -425 258Q-441 263 -435 274Q-429 285 -431 293Q-433 300 -425 314Q-417 327 -421 335Q-425 342 -409 341Q-392 340 -384 332Q-376 325 -373 312Q-370 300 -363 310Q-356 320 -354 330Q-352 340 -354 345Q-356 350 -364 365Q-372 380 -380 392Q-388 405 -386 418Q-384 430 -382 452Q-380 473 -371 478Q-362 482 -361 461Q-360 440 -348 450Q-336 460 -343 480Q-350 500 -333 477Q-316 453 -301 432Q-287 410 -279 384Q-271 357 -269 348Q-267 340 -257 322Q-247 305 -259 290Q-271 275 -267 257Q-263 240 -285 240Q-307 240 -317 222ZM271 -217Q263 -230 273 -230Q283 -230 285 -217Q287 -205 279 -192Q271 -180 267 -182Q263 -185 271 -195Q279 -205 271 -217ZM-5 145Q2 141 -3 153Q-8 165 -14 172Q-20 180 -21 175Q-23 170 -17 160Q-12 150 -5 145Z';
+const REGION_SHAPE={"hokkaido": {"vb": "309 -1062 633 633", "reg": "M552 -946Q561 -952 588 -921Q615 -890 643 -860Q671 -830 712 -815Q752 -800 773 -798Q793 -795 815 -815Q837 -835 827 -798Q817 -760 837 -748Q858 -735 841 -720Q825 -705 793 -700Q760 -695 734 -678Q708 -660 690 -630Q671 -600 639 -615Q607 -630 570 -645Q534 -660 510 -648Q485 -635 465 -645Q445 -655 441 -652Q437 -650 445 -630Q453 -610 477 -595Q502 -580 481 -577Q461 -575 441 -558Q421 -540 417 -562Q413 -585 402 -615Q392 -645 413 -688Q433 -730 459 -725Q485 -720 498 -723Q510 -725 524 -760Q538 -795 540 -868Q542 -940 552 -946Z", "sw": 10.54}, "tohoku": {"vb": "134 -637 636 636", "reg": "M429 -507Q433 -525 445 -505Q457 -485 469 -495Q481 -505 491 -497Q502 -490 502 -505Q502 -520 491 -537Q481 -553 502 -548Q523 -543 521 -507Q518 -470 524 -460Q530 -450 547 -407Q565 -365 561 -346Q558 -327 546 -309Q534 -290 530 -260Q526 -230 506 -227Q485 -225 483 -202Q481 -180 479 -140Q477 -100 473 -93Q469 -87 461 -86Q453 -85 441 -88Q429 -90 409 -93Q388 -95 372 -93Q356 -90 348 -110Q340 -130 356 -160Q372 -190 378 -205Q384 -220 376 -238Q368 -255 379 -273Q391 -292 400 -326Q409 -360 394 -378Q380 -395 392 -408Q405 -420 402 -443Q399 -465 412 -477Q425 -490 429 -507Z", "sw": 10.61}, "shutoken": {"vb": "268 -77 239 239", "reg": "M452 21Q475 27 456 54Q437 80 433 82Q429 85 412 98Q395 110 393 90Q391 70 402 55Q413 40 400 38Q388 35 382 45Q376 55 375 70Q374 85 371 78Q368 70 352 73Q336 75 334 80Q332 85 328 75Q324 65 328 52Q332 40 326 30Q320 20 309 10Q299 -0 311 -12Q324 -25 344 -25Q364 -25 372 -23Q380 -20 386 -12Q392 -5 411 5Q429 15 452 21Z", "sw": 3.98}, "tokai": {"vb": "25 -88 364 364", "reg": "M328 75Q332 85 331 88Q330 90 332 97Q334 105 327 119Q320 133 316 136Q311 140 307 125Q303 110 307 100Q311 90 297 95Q283 100 272 120Q261 140 239 136Q218 132 190 137Q162 142 174 134Q186 125 170 127Q154 130 152 112Q150 95 142 100Q133 105 138 127Q142 150 148 152Q154 155 152 162Q150 170 123 182Q97 193 89 211Q81 228 83 207Q85 185 87 168Q89 150 89 132Q89 115 97 102Q105 90 109 68Q113 45 121 30Q129 15 142 -3Q154 -20 170 -30Q186 -40 198 -25Q210 -10 210 20Q210 50 220 65Q231 80 245 65Q259 50 275 57Q291 65 301 65Q311 65 318 65Q324 65 328 75Z", "sw": 6.07}, "kansai": {"vb": "-128 -20 317 317", "reg": "M83 207Q81 228 72 241Q62 255 45 243Q28 232 20 206Q12 180 24 162Q36 145 36 139Q35 132 25 132Q16 132 7 134Q-2 135 -14 128Q-26 122 -39 125Q-53 128 -51 109Q-49 90 -44 77Q-40 65 -40 52Q-40 38 -28 37Q-16 35 0 29Q16 22 22 36Q28 50 32 48Q36 45 59 43Q81 40 89 38Q97 35 105 40Q113 45 109 68Q105 90 97 102Q89 115 89 132Q89 150 87 168Q85 185 83 207ZM-5 145Q2 141 -3 153Q-8 165 -14 172Q-20 180 -21 175Q-23 170 -17 160Q-12 150 -5 145Z", "sw": 5.28}, "chugoku": {"vb": "-384 -77 396 396", "reg": "M-51 109Q-53 128 -69 137Q-85 145 -108 151Q-131 157 -138 159Q-146 160 -172 169Q-198 178 -202 172Q-206 165 -216 175Q-227 185 -243 191Q-259 197 -281 201Q-303 205 -316 205Q-329 205 -330 188Q-332 170 -311 164Q-291 158 -273 145Q-255 132 -246 121Q-237 110 -215 84Q-193 57 -177 51Q-162 45 -152 45Q-142 45 -103 45Q-65 45 -53 42Q-40 38 -40 52Q-40 65 -44 77Q-49 90 -51 109Z", "sw": 6.6}, "kyushu": {"vb": "-544 152 401 401", "reg": "M-317 222Q-326 205 -333 205Q-340 205 -358 222Q-376 240 -384 240Q-392 240 -400 246Q-409 252 -425 258Q-441 263 -435 274Q-429 285 -431 293Q-433 300 -425 314Q-417 327 -421 335Q-425 342 -409 341Q-392 340 -384 332Q-376 325 -373 312Q-370 300 -363 310Q-356 320 -354 330Q-352 340 -354 345Q-356 350 -364 365Q-372 380 -380 392Q-388 405 -386 418Q-384 430 -382 452Q-380 473 -371 478Q-362 482 -361 461Q-360 440 -348 450Q-336 460 -343 480Q-350 500 -333 477Q-316 453 -301 432Q-287 410 -279 384Q-271 357 -269 348Q-267 340 -257 322Q-247 305 -259 290Q-271 275 -267 257Q-263 240 -285 240Q-307 240 -317 222Z", "sw": 6.69}};
+function regionIcon(id,ready){
+  const o=REGION_SHAPE[id];
+  const bg=ready?'#e3f1fb':'#edf1f4', land=ready?'#d3dbe1':'#dfe5e9', reg=ready?'#1F6FC5':'#aeb9c2';
+  return `<span class="ico rg" style="background:${bg}"><svg viewBox="${o.vb}" width="46" height="46" aria-hidden="true"><path d="${JP_LAND}" fill="${land}" stroke="${bg}" stroke-width="${o.sw}" stroke-linejoin="round"/><path d="${o.reg}" fill="${reg}" stroke="#fff" stroke-width="${o.sw}" stroke-linejoin="round"/></svg></span>`;
+}
+const CATS=[
+  {id:'jr',name:'JR',color:'#2e9b48'},
+  {id:'subway',name:'地下鉄',color:'#0079c2'},
+  {id:'private',name:'私鉄',color:'#e9711c'},
+];
+
+</script>
+<script src="maps.js"></script>
+<script>
+// 該当する路線がない種類（選択画面に出さない）
+const NA=new Set(['hokkaido-private','chugoku-subway']);
+// 表示範囲などの既定値
+Object.entries(MAPS).forEach(([id,M])=>{
+  M.id=id;
+  if(M.k){ // 座標の拡大（駅が密集する地図用）
+    const k=M.k; Object.values(M.st).forEach(v=>{v[0]*=k;v[1]*=k;});
+    M.lines.forEach(l=>{l.nodes=l.nodes.map(n=>typeof n==='string'?n:[n[0]*k,n[1]*k]);if(l.badge)l.badge=[l.badge[0]*k,l.badge[1]*k];});
+    ['center','focus'].forEach(f=>{if(M[f])M[f]=[M[f][0]*k,M[f][1]*k];});
+    M.texts=(M.texts||[]).map(([x,y,t])=>[x*k,y*k,t]);
+  }
+  const xs=Object.values(M.st).map(v=>v[0]),ys=Object.values(M.st).map(v=>v[1]);
+  const b=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+  const mg=M.margin||110;
+  M.vb=M.vb||[b[0]-mg,b[1]-mg*.7,b[2]-b[0]+mg*2,b[3]-b[1]+mg*1.4];
+  M._bbox=[M.vb[0],M.vb[1],M.vb[0]+M.vb[2],M.vb[1]+M.vb[3]];
+  M.center=M.center||[(b[0]+b[2])/2,(b[1]+b[3])/2];
+  M.mobile=M.mobile||{scale:M.mscale||.75,cx:M.focus?M.focus[0]:(b[0]+b[2])/2,cy:M.focus?M.focus[1]:(b[1]+b[3])/2};
+  M.water=M.water||[]; M.texts=M.texts||[];
+});
+const mapIdOf=(r,c)=>`${r}-${c}`;
+const mapTitle=id=>MAPS[id]?.title || (()=>{const [r,c]=id.split('-');return `${REGIONS.find(x=>x.id===r)?.name||r} ${CATS.find(x=>x.id===c)?.name||c}`;})();
+const knownMapId=id=>id==='shinkansen'||REGIONS.some(r=>CATS.some(c=>mapIdOf(r.id,c.id)===id));
+
+// =====================================================================
+//  幾何（同じ線路を走る路線は並べて描く）
+// =====================================================================
+const pt=(M,n)=>typeof n==='string' ? M.st[n].slice(0,2) : n;
+const pathD=(pts,closed)=>'M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L')+(closed?'Z':'');
+const plen=pts=>pts.slice(1).reduce((s,p,i)=>s+Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]),0);
+const pkey=p=>p[0]+','+p[1];
+function onSeg(a,b,c){
+  const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy,t=((c[0]-a[0])*dx+(c[1]-a[1])*dy)/L2;
+  if(t<=1e-6||t>=1-1e-6) return false;
+  return Math.hypot(a[0]+t*dx-c[0],a[1]+t*dy-c[1])<0.5;
+}
+// ===== 駅名・バッジの配置（pos 指定がなければ自動で空いている場所へ） =====
+const rectHit=(a,b)=>a.x0<b.x1&&a.x1>b.x0&&a.y0<b.y1&&a.y1>b.y0;
+function segRect(p,q,r){ // 線分と矩形の交差（Liang–Barsky）
+  let t0=0,t1=1;const dx=q[0]-p[0],dy=q[1]-p[1];
+  for(const [pp,qq] of [[-dx,p[0]-r.x0],[dx,r.x1-p[0]],[-dy,p[1]-r.y0],[dy,r.y1-p[1]]]){
+    if(pp===0){if(qq<0)return false;}else{const t=qq/pp;if(pp<0){if(t>t1)return false;if(t>t0)t0=t;}else{if(t<t0)return false;if(t<t1)t1=t;}}
+  }
+  return true;
+}
+function layout(M){
+  const fs=M.fs||15, RAD=6.5, th=fs+8, segs=[];
+  M.lines.forEach(l=>{const P=l._pts;for(let i=0;i<P.length-1;i++)segs.push([P[i],P[i+1]]);if(l.loop)segs.push([P[P.length-1],P[0]]);});
+  const placed=[], items=[];
+  const segCount=r=>{const e={x0:r.x0-3,y0:r.y0-3,x1:r.x1+3,y1:r.y1+3};let n=0;for(const [p,q] of segs)if(segRect(p,q,e))n++;return n;};
+  const inView=r=>!M._bbox||(r.x0>=M._bbox[0]&&r.y0>=M._bbox[1]&&r.x1<=M._bbox[2]&&r.y1<=M._bbox[3]);
+  // 1) 駅の形（乗り換え駅は札、それ以外は丸）
+  for(const [name,v] of Object.entries(M.st)){
+    const [x,y,pos]=v, ps=[];
+    M.lines.forEach(l=>l.nodes.forEach((n,k)=>{if(n===name){const [a,b]=l._range[l._orig[k]];for(let q=a;q<=b;q++)ps.push(l._pts[q]);}}));
+    if(!ps.length) ps.push([x,y]);
+    let p1=ps[0],p2=ps[0],best=-1;
+    ps.forEach(a=>ps.forEach(b=>{const dd=Math.hypot(a[0]-b[0],a[1]-b[1]);if(dd>best){best=dd;p1=a;p2=b;}}));
+    const lines=M.lines.filter(l=>l.nodes.includes(name)).length, tw=name.length*fs+10;
+    if(lines>=2){
+      const cx=(p1[0]+p2[0])/2,cy=(p1[1]+p2[1])/2,dx=Math.abs(p1[0]-p2[0]),dy=Math.abs(p1[1]-p2[1]);
+      const vert=pos==='v'||(pos!=='h'&&dy>dx&&dy+14>th);
+      const w=vert?Math.max(th,dx+14):Math.max(tw,dx+14),h=vert?Math.max(name.length*fs+10,dy+14):Math.max(th,dy+14);
+      const r={x0:cx-w/2,y0:cy-h/2,x1:cx+w/2,y1:cy+h/2};
+      items.push({name,box:true,r,vert,cx,cy}); placed.push(r);
+    }else{
+      const m={x0:Math.min(p1[0],p2[0])-RAD,x1:Math.max(p1[0],p2[0])+RAD,y0:Math.min(p1[1],p2[1])-RAD,y1:Math.max(p1[1],p2[1])+RAD};
+      items.push({name,box:false,p1,p2,dot:best<.5,m,pos,tw}); placed.push(m);
+    }
+  }
+  // 2) 丸の駅の駅名（指定位置 → 空いている位置の順に試す）
+  const ORDER=['e','w','n','s','ne','nw','se','sw'];
+  items.filter(it=>!it.box).forEach(it=>{
+    const {m,tw}=it,w=tw,h=th,g=4,d=1,cx=(m.x0+m.x1)/2,cy=(m.y0+m.y1)/2;
+    const at={n:[cx-w/2,m.y0-g-h],s:[cx-w/2,m.y1+g],e:[m.x1+g,cy-h/2],w:[m.x0-g-w,cy-h/2],ne:[m.x1+d,m.y0-d-h],nw:[m.x0-d-w,m.y0-d-h],se:[m.x1+d,m.y1+d],sw:[m.x0-d-w,m.y1+d]};
+    let bestR=null,bestS=1e9;
+    const cands=ORDER.includes(it.pos)?[it.pos]:ORDER;
+    cands.forEach((k,i)=>{
+      const r={x0:at[k][0],y0:at[k][1],x1:at[k][0]+w,y1:at[k][1]+h};
+      const s=ORDER.includes(it.pos)?0:placed.filter(o=>o!==m&&rectHit(o,r)).length*20+segCount(r)*3+(inView(r)?0:15)+i*.1;
+      if(s<bestS){bestS=s;bestR=r;}
+    });
+    it.r=bestR; placed.push(bestR);
+  });
+  M._items=items;
+  // 3) 路線名バッジ（badge 指定がなければ、線の近くの空いている場所）
+  M._badge={};
+  M.lines.forEach(l=>{
+    const fsb=14,w=l.name.length*fsb+symW(l.sym)+20,h=26;
+    if(l.badge){M._badge[l.id]=l.badge;placed.push({x0:l.badge[0]-w/2,y0:l.badge[1]-h/2,x1:l.badge[0]+w/2,y1:l.badge[1]+h/2});return;}
+    const P=l._pts,cands=[];
+    for(let i=0;i<P.length-1;i++){
+      const a=P[i],b=P[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<40)continue;
+      const nx=-(b[1]-a[1])/L,ny=(b[0]-a[0])/L;
+      for(const t of [.5,.3,.7])for(const sgn of [1,-1]){
+        const mx=a[0]+(b[0]-a[0])*t,my=a[1]+(b[1]-a[1])*t,off=(Math.abs(nx)*w/2+Math.abs(ny)*h/2)+14;
+        cands.push([mx+nx*off*sgn,my+ny*off*sgn,Math.abs(i-(P.length-2)/2)]);
+      }
+    }
+    let best=null,bs=1e9;
+    cands.forEach(([x,y,c])=>{const r={x0:x-w/2,y0:y-h/2,x1:x+w/2,y1:y+h/2};const s=placed.filter(o=>rectHit(o,r)).length*20+segCount(r)*4+(inView(r)?0:30)+c*.05;if(s<bs){bs=s;best=[x,y,r];}});
+    if(best){M._badge[l.id]=[best[0],best[1]];placed.push(best[2]);}
+    else M._badge[l.id]=pt(M,l.nodes[0]);
+  });
+}
+// 地図ごとに一度だけ：各路線の並列オフセット済みの線形を作る
+function prepare(M){
+  if(M._prep) return;
+  const GAP=M.gap||7.5, R=M.center, rank=l=>{const i=(M.rank||[]).indexOf(l.id);return i<0?100+M.lines.indexOf(l):i;};
+  const all=new Map();
+  M.lines.forEach(l=>l.nodes.forEach(n=>{const p=pt(M,n);all.set(pkey(p),p);}));
+  const allPts=[...all.values()];
+  // 1) 他の路線の駅・曲がり角が途中にある区間は分割して、共有区間をそろえる
+  M.lines.forEach(l=>{
+    const P0=l.nodes.map(n=>pt(M,n)),N=P0.length,closed=!!l.loop,cnt=closed?N:N-1,exp=[],orig=[];
+    for(let i=0;i<N;i++){
+      orig.push(exp.length); exp.push(P0[i]);
+      if(i<cnt){const a=P0[i],b=P0[(i+1)%N];exp.push(...allPts.filter(c=>onSeg(a,b,c)).sort((c1,c2)=>Math.hypot(c1[0]-a[0],c1[1]-a[1])-Math.hypot(c2[0]-a[0],c2[1]-a[1])));}
+    }
+    Object.assign(l,{_exp:exp,_orig:orig,_closed:closed});
+  });
+  // 2) 区間ごとに通る路線を集め、内側（center寄り）から順に並べる
+  const edges=new Map(), ek=(a,b)=>[pkey(a),pkey(b)].sort().join('|');
+  M.lines.forEach(l=>{const E=l._exp,n=E.length,cnt=l._closed?n:n-1;
+    for(let i=0;i<cnt;i++){const a=E[i],b=E[(i+1)%n],k=ek(a,b);if(!edges.has(k))edges.set(k,{a,b,lines:[]});const e=edges.get(k);if(!e.lines.includes(l))e.lines.push(l);}
+  });
+  edges.forEach(e=>{
+    const dx=e.b[0]-e.a[0],dy=e.b[1]-e.a[1],L=Math.hypot(dx,dy);let nv=[-dy/L,dx/L];
+    const mx=(e.a[0]+e.b[0])/2-R[0],my=(e.a[1]+e.b[1])/2-R[1];
+    let dot=nv[0]*mx+nv[1]*my; if(Math.abs(dot)<1e-6) dot=nv[0]+nv[1]*.01;
+    if(dot<0) nv=[-nv[0],-nv[1]];
+    e.n=nv; e.slot=new Map();
+    const order=[...e.lines].sort((x,y)=>rank(x)-rank(y));
+    order.forEach((l,j)=>e.slot.set(l,(j-(order.length-1)/2)*GAP));
+  });
+  // 3) 各路線のオフセット線（角は交点、ずれる所は小さく段差）
+  M.lines.forEach(l=>{
+    const E=l._exp,n=E.length,cnt=l._closed?n:n-1,d=[],nr=[];
+    for(let i=0;i<cnt;i++){
+      const a=E[i],b=E[(i+1)%n],e=edges.get(ek(a,b)),dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy),nl=[-dy/L,dx/L];
+      nr.push(nl); d.push((nl[0]*e.n[0]+nl[1]*e.n[1]>0?1:-1)*e.slot.get(l));
+    }
+    const pts=[],range=[];
+    for(let k=0;k<n;k++){
+      const pe=k>0?k-1:(l._closed?cnt-1:-1), ne=k<cnt?k:-1, P=E[k], s=pts.length;
+      if(pe<0) pts.push([P[0]+nr[ne][0]*d[ne],P[1]+nr[ne][1]*d[ne]]);
+      else if(ne<0) pts.push([P[0]+nr[pe][0]*d[pe],P[1]+nr[pe][1]*d[pe]]);
+      else{
+        const n1=nr[pe],n2=nr[ne],d1=d[pe],d2=d[ne],det=n1[0]*n2[1]-n1[1]*n2[0];
+        if(Math.abs(det)<1e-6){
+          const p1=[P[0]+n1[0]*d1,P[1]+n1[1]*d1],p2=[P[0]+n2[0]*d2,P[1]+n2[1]*d2];
+          pts.push(p1); if(Math.hypot(p1[0]-p2[0],p1[1]-p2[1])>.1) pts.push(p2);
+        }else{
+          const c1=P[0]*n1[0]+P[1]*n1[1]+d1,c2=P[0]*n2[0]+P[1]*n2[1]+d2;
+          pts.push([(c1*n2[1]-c2*n1[1])/det,(n1[0]*c2-n2[0]*c1)/det]);
+        }
+      }
+      range.push([s,pts.length-1]);
+    }
+    l._pts=pts; l._range=range;
+  });
+  layout(M);
+  M._prep=true;
+}
+// 元の駅順インデックス i → j（前向き）の線形
+function slicePts(l,i,j){
+  const a=l._orig[i],b=l._orig[j],r=l._range,P=l._pts;
+  return a<=b ? P.slice(r[a][1],r[b][0]+1) : P.slice(r[a][1]).concat(P.slice(0,r[b][0]+1));
+}
+function segment(M,line,from,to,via){
+  prepare(M);
+  const N=line.nodes, idx=s=>N.findIndex(n=>n===s);
+  if(!from&&!to) return {names:N.filter(n=>typeof n==='string'),pts:line._pts,closed:!!line.loop};
+  const i=idx(from), j=idx(to);
+  if(i<0) throw `「${line.name}」に「${from}」駅がありません`;
+  if(j<0) throw `「${line.name}」に「${to}」駅がありません`;
+  const names=(a,b)=>{const r=[];for(let k=a;;k=(k+1)%N.length){if(typeof N[k]==='string')r.push(N[k]);if(k===b)break;}return r;};
+  if(!line.loop){const a=Math.min(i,j),b=Math.max(i,j);return {names:names(a,b),pts:slicePts(line,a,b)};}
+  const A={names:names(i,j),pts:slicePts(line,i,j)}, B={names:names(j,i),pts:slicePts(line,j,i)};
+  if(via){if(A.names.includes(via))return A;if(B.names.includes(via))return B;throw `「${line.name}」に経由駅「${via}」がありません`;}
+  return plen(A.pts)<=plen(B.pts)?A:B;
+}
+
+// =====================================================================
+//  データ
+// =====================================================================
+let ALL=[];      // 解決済みの運行情報（全地図）
+const LABEL={normal:'平常運転',delay:'遅延',suspend:'運転見合わせ'};
+function normStatus(s){s=String(s||'').toLowerCase();return ['suspend','stop','運転見合わせ','運休','見合わせ'].includes(s)?'suspend':'delay';}
+function findLine(M,key){return M.lines.find(l=>l.id===key)||M.lines.find(l=>l.name===key||l.name.replace(/線$/,'')===String(key).replace(/線$/,''));}
+function load(data){
+  const errs=[],out=[];
+  (data.incidents||[]).forEach((x,k)=>{
+    const where=`${k+1}件目`;
+    const M=MAPS[x.map];
+    if(!M){errs.push(`${where}: ${knownMapId(x.map)?`地図「${mapTitle(x.map)}」は準備中です`:`地図ID「${x.map??'（未指定）'}」が見つかりません`}`);return;}
+    const l=findLine(M,x.line);
+    if(!l){errs.push(`${where}: ${M.title}に路線「${x.line}」が見つかりません`);return;}
+    try{out.push({...x,mapId:x.map,lineId:l.id,status:normStatus(x.status),seg:segment(M,l,x.from,x.to,x.via)});}
+    catch(e){errs.push(`${where}: ${e}`);}
+  });
+  ALL=out; META={sources:data.sources||[],coverage:data.coverage||null};
+  const u=data.updatedAt?new Date(data.updatedAt):null;
+  document.getElementById('updated').textContent=u&&!isNaN(u)?`最終更新 ${u.getMonth()+1}/${u.getDate()} ${String(u.getHours()).padStart(2,'0')}:${String(u.getMinutes()).padStart(2,'0')}`:'';
+  if(errs.length)console.warn('読み込めなかった項目があります\n'+errs.join('\n'));
+  updateNotice();
+}
+let META={sources:[],coverage:null};
+// 取得に失敗した会社・自動更新の対象外の地図を知らせる
+function updateNotice(){
+  const msgs=[], failed=META.sources.filter(x=>!x.ok).map(x=>x.name);
+  if(failed.length) msgs.push(`一部の情報を取得できませんでした（${failed.join('、')}）。前回の情報を表示している場合があります。`);
+  if(M&&META.coverage&&!META.coverage.includes(M.id)) msgs.push('この路線図は自動更新の対象外です（手動で登録した情報のみ表示）。');
+  const n=$('notice'); n.textContent=msgs.join(' '); n.hidden=!msgs.length;
+}
+// 地図ごとの集計（路線数）
+function summary(mapIds){
+  const s={suspend:new Set(),delay:new Set()};
+  ALL.filter(i=>mapIds.includes(i.mapId)).forEach(i=>s[i.status].add(i.mapId+':'+i.lineId));
+  s.delay=new Set([...s.delay].filter(k=>!s.suspend.has(k)));
+  return {suspend:s.suspend.size,delay:s.delay.size};
+}
+function sumChips(mapIds){
+  const built=mapIds.filter(id=>MAPS[id]);
+  if(!built.length) return '<span class="status st-soon">準備中</span>';
+  const s=summary(built);
+  if(!s.suspend&&!s.delay) return '<span class="status st-normal">平常運転</span>';
+  return (s.suspend?`<span class="status st-suspend">見合わせ ${s.suspend}路線</span>`:'')+(s.delay?`<span class="status st-delay">遅延 ${s.delay}路線</span>`:'');
+}
+
+// =====================================================================
+//  画面切り替え（#地域 → #地域-種別）
+// =====================================================================
+const $=id=>document.getElementById(id);
+let parentHash='';
+function setHeader(crumb,title,back,legend){
+  $('crumb').textContent=crumb; $('title').textContent=title;
+  $('back').hidden=back===null; parentHash=back||'';
+  $('legend').hidden=!legend;
+}
+function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===id));}
+function route(){
+  closeSheet(true);
+  const h=decodeURIComponent(location.hash.slice(1));
+  const region=REGIONS.find(r=>r.id===h);
+  if(knownMapId(h)) showMap(h);
+  else{ M=null; region?showRegion(region):showHome(); }
+  updateNotice();
+}
+$('back').onclick=()=>{location.hash=parentHash;};
+window.addEventListener('hashchange',route);
+
+function showHome(){
+  setHeader('', '運行状況マップ', null, false);
+  showView('view-select');
+  const regionMaps=r=>CATS.map(c=>mapIdOf(r.id,c.id)).filter(id=>!NA.has(id));
+  $('pick').innerHTML=`
+    <h2>新幹線</h2>
+    <div class="cards">
+      <button class="card wide" data-go="shinkansen"><span class="ico rg" style="background:#e3f1fb"><svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><path d="M3 39H45" stroke="#9fb4c4" stroke-width="1.6" stroke-linecap="round"/><rect x="8" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><rect x="28" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><path d="M2 19.5H24C32.5 19.5 40 23.5 46 31.6Q46.6 34.6 43.6 34.6H2Z" fill="#fff" stroke="#2a3b4a" stroke-width="1.3" stroke-linejoin="round"/><path d="M2 28.6H41.2L43.9 31.6H2Z" fill="#1F6FC5"/><path d="M29.5 22.2C33.6 22.6 37.2 24.3 39.8 26.9H31.6Z" fill="#2b4a66"/><rect x="5" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="10.6" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="16.2" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="21.8" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><path d="M9 13H17M5 16H12" stroke="#7fb3d9" stroke-width="1.4" stroke-linecap="round"/></svg></span><div class="nm">新幹線（全国）</div></button>
+    </div>
+    <h2>地域を選ぶ</h2>
+    <div class="cards">
+      ${REGIONS.map(r=>{const ready=regionMaps(r).some(id=>MAPS[id]);return `<button class="card${ready?'':' soon'}" data-go="${r.id}"><div class="rhead">${regionIcon(r.id,ready)}<div class="nm">${r.name}</div></div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
+    </div>`;
+  bindCards();
+}
+// 種類アイコン（案内用図記号ふうの白抜き）
+function catIcon(c,ready){
+  const bg=ready?c.color:'#c5cfd6', W='#fff';
+  // 正面から見た電車（x,y：左上、k：倍率）
+  const train=(x,y,k)=>{const t=(a,b)=>`${(x+a*k).toFixed(1)}`+' '+`${(y+b*k).toFixed(1)}`;
+    return `<path d="M${t(3,0)}H${t(19,0).split(' ')[0]}Q${t(22,0)} ${t(22,3)}V${t(22,23).split(' ')[1]}Q${t(22,26)} ${t(19,26)}H${t(3,26).split(' ')[0]}Q${t(0,26)} ${t(0,23)}V${t(0,3).split(' ')[1]}Q${t(0,0)} ${t(3,0)}Z" fill="${W}"/>`+
+      `<rect x="${x+3*k}" y="${y+2.2*k}" width="${16*k}" height="${1.6*k}" rx="${.6*k}" fill="${bg}"/>`+
+      `<rect x="${x+2.6*k}" y="${y+5.5*k}" width="${7.6*k}" height="${9*k}" rx="${1.3*k}" fill="${bg}"/>`+
+      `<rect x="${x+11.8*k}" y="${y+5.5*k}" width="${7.6*k}" height="${9*k}" rx="${1.3*k}" fill="${bg}"/>`+
+      `<circle cx="${x+5*k}" cy="${y+20.5*k}" r="${1.9*k}" fill="${bg}"/><circle cx="${x+17*k}" cy="${y+20.5*k}" r="${1.9*k}" fill="${bg}"/>`+
+      `<path d="M${t(5,28)}L${t(1,34)}M${t(17,28)}L${t(21,34)}" stroke="${W}" stroke-width="${2.6*k}" stroke-linecap="round"/>`;};
+  let body;
+  if(c.id==='subway'){
+    // トンネルの中の電車
+    body=`<path d="M6 44V25A18 18 0 0 1 42 25V44" fill="none" stroke="${W}" stroke-width="3.2" stroke-linejoin="round"/>`+train(15.2,16,0.8);
+  }else if(c.id==='private'){
+    body=train(13,6,1);
+  }else{
+    return `<span class="ico rg" style="background:${bg};font-size:17px">${c.name}</span>`;
+  }
+  return `<span class="ico rg" style="background:${bg}"><svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true">${body}</svg></span>`;
+}
+function showRegion(r){
+  setHeader('地域', r.name, '', false);
+  showView('view-select');
+  $('pick').innerHTML=`
+    <h2>種類を選ぶ</h2>
+    <div class="cards">
+      ${CATS.filter(c=>!NA.has(mapIdOf(r.id,c.id))).map(c=>{const id=mapIdOf(r.id,c.id),ready=!!MAPS[id];return `<button class="card wide${ready?'':' soon'}" data-go="${id}">${catIcon(c,ready)}<div class="nm">${c.name}</div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
+    </div>`;
+  bindCards();
+}
+function bindCards(){
+  document.querySelectorAll('.card').forEach(b=>b.onclick=()=>{if(b.classList.contains('soon'))return toast('この路線図は準備中です');location.hash=b.dataset.go;});
+  $('view-select').scrollTop=0;
+}
+
+// =====================================================================
+//  路線図
+// =====================================================================
+const svg=$('map'), NS='http://www.w3.org/2000/svg';
+const el=(tag,attrs={},parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||svg).appendChild(e);return e;};
+let M=null, LBY={}, incidents=[], selected=null;
+
+function showMap(id){
+  const isShin=id==='shinkansen', region=REGIONS.find(r=>id.startsWith(r.id+'-'));
+  setHeader(isShin?'全国':region?.name||'', isShin?'新幹線':mapTitle(id).replace(/^\S+\s/,''), isShin?'':region?.id||'', !!MAPS[id]);
+  showView('view-map');
+  M=MAPS[id]||null; selected=null;
+  const ok=!!M;
+  $('mapWrap').style.display=ok?'':'none'; $('aside').style.display=ok?'':'none'; $('zoom').style.display=ok?'':'none';
+  $('soon').style.display=ok?'none':'flex';
+  if(!ok) return;
+  LBY=Object.fromEntries(M.lines.map(l=>[l.id,l]));
+  incidents=ALL.filter(i=>i.mapId===id);
+  svg.setAttribute('viewBox',M.vb.join(' '));
+  render(); renderList();
+  requestAnimationFrame(()=>{ wrap.clientWidth<820 ? setScale(M.mobile.scale,M.mobile.cx,M.mobile.cy) : setScale(fitScale(),M.vb[0]+M.vb[2]/2,M.vb[1]+M.vb[3]/2); });
+}
+
+function render(){
+  svg.innerHTML='';
+  prepare(M);
+  const [vx,vy,vw,vh]=M.vb;
+  el('defs').innerHTML='<filter id="blur" filterUnits="userSpaceOnUse" x="-500" y="-500" width="3000" height="2500"><feGaussianBlur stdDeviation="5"/></filter>';
+  el('rect',{x:vx,y:vy,width:vw,height:vh,fill:'#f7f9fa'});
+  M.water.forEach(d=>el('path',{d,fill:'#bfe6fb'}));
+  M.texts.forEach(([x,y,t])=>{el('text',{x,y,fill:'#8fcbec','font-size':22,'font-weight':700,'letter-spacing':'0.3em'}).textContent=t;});
+
+  const gBase=el('g',{fill:'none',stroke:'#c3ccd3','stroke-width':5.5,'stroke-linejoin':'round','stroke-linecap':'round'});
+  M.lines.forEach(l=>el('path',{d:pathD(l._pts,l.loop)},gBase));
+
+  if(selected){
+    const l=LBY[selected];
+    el('path',{d:pathD(l._pts,l.loop),fill:'none',stroke:l.color,'stroke-width':5,'stroke-linejoin':'round','stroke-linecap':'round',opacity:.6});
+  }
+
+  const segs=incidents.map(inc=>({inc,l:LBY[inc.lineId],pts:inc.seg.pts}));
+  const gGlow=el('g',{fill:'none','stroke-linejoin':'round','stroke-linecap':'round'});
+  [...segs].sort((a,b)=>(a.inc.status==='suspend')-(b.inc.status==='suspend')).forEach(({inc,pts})=>{
+    const c=inc.status==='suspend'?'#ff2d3d':'#ffc81e', g=el('g',{class:'glow '+inc.status},gGlow);
+    el('path',{d:pathD(pts,inc.seg.closed),stroke:c,'stroke-width':24,opacity:.75,filter:'url(#blur)'},g);
+    el('path',{d:pathD(pts,inc.seg.closed),stroke:c,'stroke-width':12,opacity:.9},g);
+  });
+  const gCol=el('g',{fill:'none','stroke-linejoin':'round','stroke-linecap':'round'});
+  segs.forEach(({inc,l,pts})=>el('path',{d:pathD(pts,inc.seg.closed),stroke:l.color,'stroke-width':5.5},gCol));
+
+  const gHit=el('g',{fill:'none',stroke:'transparent','stroke-width':20,'stroke-linejoin':'round'});
+  M.lines.forEach(l=>{el('path',{d:pathD(l._pts,l.loop),class:'hit'},gHit).addEventListener('click',e=>{e.stopPropagation();openLine(l.id);});});
+  segs.forEach(({inc,pts})=>{el('path',{d:pathD(pts,inc.seg.closed),class:'hit','stroke-width':24},gHit).addEventListener('click',e=>{e.stopPropagation();openLine(inc.lineId);});});
+
+  // 駅
+  const active=new Set();incidents.forEach(i=>i.seg.names.forEach(n=>active.add(n)));
+  const gSt=el('g'), RAD=6.5, fs=M.fs||15;
+  M._items.forEach(it=>{
+    const on=active.has(it.name), fill=on?'#1f2a33':'#b2bdc6', name=it.name;
+    if(it.box){
+      const r=it.r;
+      el('rect',{x:r.x0,y:r.y0,width:r.x1-r.x0,height:r.y1-r.y0,rx:3,fill,stroke:'#fff','stroke-width':1.5},gSt);
+      if(it.vert)[...name].forEach((ch,i)=>el('text',{x:it.cx,y:it.cy-(name.length*fs)/2+fs*(i+1)-2,'text-anchor':'middle',fill:'#fff','font-size':fs,'font-weight':700},gSt).textContent=ch);
+      else el('text',{x:it.cx,y:it.cy+fs*.37,'text-anchor':'middle',fill:'#fff','font-size':fs,'font-weight':700},gSt).textContent=name;
+      return;
+    }
+    const edge=on?'#1f2a33':'#97a5b0';
+    if(it.dot) el('circle',{cx:it.p1[0],cy:it.p1[1],r:RAD-1,fill:'#fff',stroke:edge,'stroke-width':2.5},gSt);
+    else{
+      const dd=`M${it.p1[0].toFixed(1)},${it.p1[1].toFixed(1)}L${it.p2[0].toFixed(1)},${it.p2[1].toFixed(1)}`;
+      el('path',{d:dd,stroke:edge,'stroke-width':RAD*2,'stroke-linecap':'round',fill:'none'},gSt);
+      el('path',{d:dd,stroke:'#fff','stroke-width':RAD*2-5,'stroke-linecap':'round',fill:'none'},gSt);
+    }
+    const r=it.r;
+    el('rect',{x:r.x0,y:r.y0,width:r.x1-r.x0,height:r.y1-r.y0,rx:3,fill},gSt);
+    el('text',{x:(r.x0+r.x1)/2,y:(r.y0+r.y1)/2+fs*.37,'text-anchor':'middle',fill:'#fff','font-size':fs,'font-weight':700},gSt).textContent=name;
+  });
+
+  const shown=new Set(incidents.map(i=>i.lineId)); if(selected) shown.add(selected);
+  shown.forEach(id=>{
+    const l=LBY[id],[bx,by]=M._badge[id],fsb=14,sw=symW(l.sym),w=l.name.length*fsb+sw+20,h=26,g=el('g',{class:'hit'});
+    el('rect',{x:bx-w/2,y:by-h/2,width:w,height:h,rx:6,fill:'#fff',stroke:'#d5dde3'},g);
+    el('rect',{x:bx-w/2+5,y:by-9,width:sw,height:18,rx:3,fill:l.color},g);
+    el('text',{x:bx-w/2+5+sw/2,y:by+4.5,'text-anchor':'middle',fill:'#fff','font-size':11,'font-weight':900},g).textContent=l.sym;
+    el('text',{x:bx-w/2+sw+11,y:by+5,fill:'#1f2a33','font-size':fsb,'font-weight':700},g).textContent=l.name;
+    g.addEventListener('click',e=>{e.stopPropagation();openLine(id);});
+  });
+}
+const symW=s=>/^[\x00-\x7f]+$/.test(s)?26:s.length*11+8;
+
+const statusOf=id=>{const a=incidents.filter(i=>i.lineId===id);return a.some(i=>i.status==='suspend')?'suspend':a.length?'delay':'normal';};
+function renderList(){
+  const order={suspend:0,delay:1,normal:2};
+  const rows=[...M.lines].sort((a,b)=>order[statusOf(a.id)]-order[statusOf(b.id)]);
+  $('list').innerHTML=rows.map(l=>{
+    const st=statusOf(l.id),inc=incidents.filter(i=>i.lineId===l.id);
+    const sec=inc.map(i=>i.from&&i.to?`${i.from}〜${i.to}`:'全線').join('、');
+    return `<div class="row${selected===l.id?' sel':''}" data-id="${l.id}"><span class="sym" style="background:${l.color}">${l.sym}</span><div><div class="name">${l.name}</div>${sec?`<div class="sec">${sec}</div>`:''}</div><span class="status st-${st}">${LABEL[st]}</span></div>`;
+  }).join('');
+  document.querySelectorAll('.row').forEach(r=>r.onclick=()=>{selectLine(r.dataset.id,true);openLine(r.dataset.id);});
+}
+
+const sheet=$('sheet');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openLine(id){
+  const l=LBY[id]; selectLine(id,false);
+  const inc=incidents.filter(i=>i.lineId===id),st=statusOf(id);
+  sheet.innerHTML=`<div class="head"><span class="sym" style="background:${l.color}">${l.sym}</span><span class="title">${l.name}</span><span class="status st-${st}">${LABEL[st]}</span><button class="close" aria-label="閉じる">×</button></div>
+  <div class="body">${inc.length?inc.map(i=>`<div class="item"><b>${i.from&&i.to?esc(i.from)+'〜'+esc(i.to):'全線'}：${LABEL[i.status]}</b><div>${esc(i.detail||'')}</div><div class="meta">${i.since?`<span>発生 ${esc(i.since)}</span>`:''}${i.expected?`<span>再開見込み ${esc(i.expected)}</span>`:''}</div></div>`).join(''):'<div>現在、平常どおり運転しています。</div>'}</div>`;
+  sheet.querySelector('.close').onclick=()=>closeSheet();
+  sheet.classList.add('open');
+}
+function closeSheet(quiet){sheet.classList.remove('open');if(!quiet&&M&&selected)selectLine(null,false);}
+$('mapWrap').addEventListener('click',()=>closeSheet());
+function selectLine(id,scroll){
+  selected=id; render(); renderList();
+  if(id&&scroll){
+    const pts=LBY[id].nodes.map(n=>pt(M,n)),xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+    centerOn((Math.min(...xs)+Math.max(...xs))/2,(Math.min(...ys)+Math.max(...ys))/2);
+  }
+}
+
+// ズーム
+const wrap=$('mapWrap'); let scale=1;
+function setScale(s,cx,cy){
+  const [vx,vy,vw,vh]=M.vb, r=svg.getBoundingClientRect();
+  const fx=cx??(vx+(wrap.scrollLeft+wrap.clientWidth/2)/r.width*vw), fy=cy??(vy+(wrap.scrollTop+wrap.clientHeight/2)/r.height*vh);
+  scale=Math.max(.2,Math.min(3,s));
+  svg.style.width=vw*scale+'px'; svg.style.height=vh*scale+'px';
+  centerOn(fx,fy);
+}
+function centerOn(x,y){wrap.scrollLeft=(x-M.vb[0])*scale-wrap.clientWidth/2;wrap.scrollTop=(y-M.vb[1])*scale-wrap.clientHeight/2;}
+const fitScale=()=>Math.min(wrap.clientWidth/M.vb[2],wrap.clientHeight/M.vb[3]);
+$('zin').onclick=()=>setScale(scale*1.3);
+$('zout').onclick=()=>setScale(scale/1.3);
+$('zfit').onclick=()=>setScale(fitScale(),M.vb[0]+M.vb[2]/2,M.vb[1]+M.vb[3]/2);
+
+// 通知
+const toastEl=$('toast');
+function toast(msg){toastEl.textContent=msg;toastEl.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>toastEl.style.display='none',5000);}
+
+// 起動
+try{load(JSON.parse($('status-data').textContent));}
+catch(e){toast('運行情報データ（JSON）の形式が正しくありません\n'+e.message);}
+route();
+// status.json を定期的に読み込み、表示中の画面を更新する
+async function fetchStatus(){
+  try{
+    const r=await fetch('status.json?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    load(await r.json());
+    if(M){ incidents=ALL.filter(i=>i.mapId===M.id); render(); renderList(); updateNotice(); }
+    else route();
+  }catch(e){ console.warn('status.json を読み込めませんでした',e); }
+}
+fetchStatus(); setInterval(fetchStatus,120000);
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{
+ "_note": "自動取得の対象外の地図に、手動で運行情報を載せたいときに使います（書式は status.json の incidents と同じ）。",
+ "incidents": []
+}

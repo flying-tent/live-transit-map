@@ -1,0 +1,13 @@
+[
+ {"@type":"odpt:TrainInformation","odpt:operator":"odpt.Operator:TokyoMetro","odpt:railway":"odpt.Railway:TokyoMetro.Ginza",
+  "odpt:trainInformationText":{"ja":"現在、平常どおり運転しています。"}},
+ {"@type":"odpt:TrainInformation","odpt:operator":"odpt.Operator:JR-East","odpt:railway":"odpt.Railway:JR-East.Yamanote",
+  "odpt:trainInformationStatus":{"ja":"運転見合わせ"},
+  "odpt:trainInformationText":{"ja":"渋谷駅での信号確認の影響で、品川駅～池袋駅間の内回り・外回りで運転を見合わせています。"},
+  "odpt:timeOfOrigin":"2026-11-14T08:12:00+09:00","odpt:resumeEstimate":"2026-11-14T09:30:00+09:00"},
+ {"@type":"odpt:TrainInformation","odpt:operator":"odpt.Operator:Toei","odpt:railway":"odpt.Railway:Toei.Oedo",
+  "odpt:trainInformationStatus":{"ja":"遅延"},
+  "odpt:trainInformationText":{"ja":"車両点検の影響で、一部列車に遅れが出ています。"}},
+ {"@type":"odpt:TrainInformation","odpt:operator":"odpt.Operator:Foo","odpt:railway":"odpt.Railway:Foo.Bar",
+  "odpt:trainInformationStatus":{"ja":"遅延"},"odpt:trainInformationText":{"ja":"遅れています"}}
+]

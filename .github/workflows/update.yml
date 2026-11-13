@@ -1,0 +1,80 @@
+name: 運行情報の更新と公開
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # 10分ごと（GitHub の混雑時は遅れることがあります）
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      save_raw:
+        description: "各社から受け取った生データを保存する（対応表の調整用）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 路線図から路線・駅の一覧を作る
+        run: |
+          mkdir -p build
+          node scripts/export_lines.mjs > build/lines.json
+
+      - name: テスト
+        run: python -m unittest discover -s tests
+
+      - name: 運行情報を集めて status.json を作る
+        env:
+          ODPT_CONSUMER_KEY: ${{ secrets.ODPT_CONSUMER_KEY }}
+          ODPT_CHALLENGE_KEY: ${{ secrets.ODPT_CHALLENGE_KEY }}
+        run: |
+          python scripts/update_status.py \
+            --lines build/lines.json \
+            --out docs/status.json \
+            --previous "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/status.json" \
+            ${{ inputs.save_raw && '--raw-dir build/raw' || '' }}
+
+      - name: 生データを保存
+        if: ${{ inputs.save_raw }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-data
+          path: |
+            build/raw
+            docs/status.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,33 @@
+{
+ "_note": "非公式の JSON です。lines の左側（JR西日本側の路線コード）は推測を含みます。合わない路線は路線名の一致で探します。",
+ "base": "https://www.train-guide.westjr.co.jp/api/v3/",
+ "areas": {
+  "kinki": "kansai-jr",
+  "hiroshima": "chugoku-jr"
+ },
+ "lines": {
+  "kansai-jr": {
+   "osakaloop": "loop",
+   "hokurikubiwako": "biwako",
+   "kyoto": "kyoto",
+   "kobesanyo": "kobe",
+   "kosei": "kosei",
+   "sagano": "sagano",
+   "takarazuka": "takarazuka",
+   "tozai": "tozai",
+   "gakkentoshi": "gakken",
+   "osakahigashi": "osaka-higashi",
+   "yumesaki": "yumesaki",
+   "yamatoji": "yamatoji",
+   "nara": "nara",
+   "hanwa": "hanwa",
+   "kansaiairport": "kansai-airport"
+  },
+  "chugoku-jr": {
+   "sanyo": "sanyo",
+   "kure": "kure",
+   "kabe": "kabe",
+   "geibi": "geibi"
+  }
+ }
+}

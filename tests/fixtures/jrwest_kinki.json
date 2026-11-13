@@ -1,0 +1,5 @@
+{"lines":{
+  "osakaloop":{"status":"運転見合わせ","cause":"京橋駅での人身事故の影響で、全線で運転を見合わせています。"},
+  "hanwa":{"status":"遅延","cause":"車両点検","section":{"from":"天王寺","to":"和歌山"}},
+  "unknowncode":{"name":"JR京都線","status":"列車に遅れ","cause":"京都駅～大阪駅間で遅れが出ています。"}
+ },"express":{}}

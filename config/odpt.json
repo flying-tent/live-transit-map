@@ -1,0 +1,224 @@
+{
+ "_note": "odpt:railway の値 → [地図ID, 路線ID]。実データで unmapped に出た路線IDはここに追加してください。",
+ "endpoints": [
+  {
+   "id": "main",
+   "name": "ODPT",
+   "url": "https://api.odpt.org/api/v4/odpt:TrainInformation",
+   "key_env": "ODPT_CONSUMER_KEY"
+  },
+  {
+   "id": "challenge",
+   "name": "ODPT（チャレンジ）",
+   "url": "https://api-challenge.odpt.org/api/v4/odpt:TrainInformation",
+   "key_env": "ODPT_CHALLENGE_KEY"
+  }
+ ],
+ "maps": [
+  "shutoken-jr",
+  "shutoken-subway",
+  "shutoken-private"
+ ],
+ "railways": {
+  "odpt.Railway:TokyoMetro.Ginza": [
+   "shutoken-subway",
+   "ginza"
+  ],
+  "odpt.Railway:TokyoMetro.Marunouchi": [
+   "shutoken-subway",
+   "marunouchi"
+  ],
+  "odpt.Railway:TokyoMetro.MarunouchiBranch": [
+   "shutoken-subway",
+   "marunouchi"
+  ],
+  "odpt.Railway:TokyoMetro.Hibiya": [
+   "shutoken-subway",
+   "hibiya"
+  ],
+  "odpt.Railway:TokyoMetro.Tozai": [
+   "shutoken-subway",
+   "tozai"
+  ],
+  "odpt.Railway:TokyoMetro.Chiyoda": [
+   "shutoken-subway",
+   "chiyoda"
+  ],
+  "odpt.Railway:TokyoMetro.Yurakucho": [
+   "shutoken-subway",
+   "yurakucho"
+  ],
+  "odpt.Railway:TokyoMetro.Hanzomon": [
+   "shutoken-subway",
+   "hanzomon"
+  ],
+  "odpt.Railway:TokyoMetro.Namboku": [
+   "shutoken-subway",
+   "namboku"
+  ],
+  "odpt.Railway:TokyoMetro.Fukutoshin": [
+   "shutoken-subway",
+   "fukutoshin"
+  ],
+  "odpt.Railway:Toei.Asakusa": [
+   "shutoken-subway",
+   "asakusa"
+  ],
+  "odpt.Railway:Toei.Mita": [
+   "shutoken-subway",
+   "mita"
+  ],
+  "odpt.Railway:Toei.Shinjuku": [
+   "shutoken-subway",
+   "shinjuku"
+  ],
+  "odpt.Railway:Toei.Oedo": [
+   "shutoken-subway",
+   "oedo"
+  ],
+  "odpt.Railway:JR-East.Yamanote": [
+   "shutoken-jr",
+   "yamanote"
+  ],
+  "odpt.Railway:JR-East.KeihinTohokuNegishi": [
+   "shutoken-jr",
+   "keihintohoku"
+  ],
+  "odpt.Railway:JR-East.ChuoRapid": [
+   "shutoken-jr",
+   "chuo-rapid"
+  ],
+  "odpt.Railway:JR-East.ChuoSobuLocal": [
+   "shutoken-jr",
+   "chuo-sobu-local"
+  ],
+  "odpt.Railway:JR-East.SobuRapid": [
+   "shutoken-jr",
+   "sobu-rapid"
+  ],
+  "odpt.Railway:JR-East.Yokosuka": [
+   "shutoken-jr",
+   "sobu-rapid"
+  ],
+  "odpt.Railway:JR-East.Tokaido": [
+   "shutoken-jr",
+   "tokaido"
+  ],
+  "odpt.Railway:JR-East.Utsunomiya": [
+   "shutoken-jr",
+   "utsunomiya"
+  ],
+  "odpt.Railway:JR-East.Takasaki": [
+   "shutoken-jr",
+   "takasaki"
+  ],
+  "odpt.Railway:JR-East.SaikyoKawagoe": [
+   "shutoken-jr",
+   "saikyo"
+  ],
+  "odpt.Railway:JR-East.ShonanShinjuku": [
+   "shutoken-jr",
+   "shonan-shinjuku"
+  ],
+  "odpt.Railway:JR-East.JobanRapid": [
+   "shutoken-jr",
+   "joban"
+  ],
+  "odpt.Railway:JR-East.JobanLocal": [
+   "shutoken-jr",
+   "joban"
+  ],
+  "odpt.Railway:JR-East.Joban": [
+   "shutoken-jr",
+   "joban"
+  ],
+  "odpt.Railway:JR-East.Musashino": [
+   "shutoken-jr",
+   "musashino"
+  ],
+  "odpt.Railway:JR-East.Keiyo": [
+   "shutoken-jr",
+   "keiyo"
+  ],
+  "odpt.Railway:JR-East.Nambu": [
+   "shutoken-jr",
+   "nambu"
+  ],
+  "odpt.Railway:JR-East.Yokohama": [
+   "shutoken-jr",
+   "yokohama"
+  ],
+  "odpt.Railway:JR-East.Ome": [
+   "shutoken-jr",
+   "ome"
+  ],
+  "odpt.Railway:Tokyu.Toyoko": [
+   "shutoken-private",
+   "ty"
+  ],
+  "odpt.Railway:Tokyu.DenEnToshi": [
+   "shutoken-private",
+   "dt"
+  ],
+  "odpt.Railway:Odakyu.Odawara": [
+   "shutoken-private",
+   "oh"
+  ],
+  "odpt.Railway:Odakyu.Enoshima": [
+   "shutoken-private",
+   "oe"
+  ],
+  "odpt.Railway:Keio.Keio": [
+   "shutoken-private",
+   "ko"
+  ],
+  "odpt.Railway:Keio.Inokashira": [
+   "shutoken-private",
+   "in"
+  ],
+  "odpt.Railway:Seibu.Ikebukuro": [
+   "shutoken-private",
+   "si"
+  ],
+  "odpt.Railway:Seibu.Shinjuku": [
+   "shutoken-private",
+   "ss"
+  ],
+  "odpt.Railway:Tobu.Tojo": [
+   "shutoken-private",
+   "tj"
+  ],
+  "odpt.Railway:Tobu.TobuSkytree": [
+   "shutoken-private",
+   "ts"
+  ],
+  "odpt.Railway:Keikyu.Main": [
+   "shutoken-private",
+   "kk"
+  ],
+  "odpt.Railway:Keikyu.Airport": [
+   "shutoken-private",
+   "kk-airport"
+  ],
+  "odpt.Railway:Keisei.Main": [
+   "shutoken-private",
+   "ks"
+  ],
+  "odpt.Railway:Keisei.Oshiage": [
+   "shutoken-private",
+   "ks-oshiage"
+  ],
+  "odpt.Railway:Keisei.NaritaSkyAccess": [
+   "shutoken-private",
+   "ks-access"
+  ],
+  "odpt.Railway:Sotetsu.Main": [
+   "shutoken-private",
+   "so"
+  ],
+  "odpt.Railway:MIR.TsukubaExpress": [
+   "shutoken-private",
+   "tx"
+  ]
+ }
+}
