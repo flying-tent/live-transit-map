@@ -47,6 +47,7 @@
   .card.wide .sum{margin:0 0 0 auto}
   .card.soon{cursor:default;background:#f4f7f9;color:#9aa7b1;box-shadow:none}
   .card.soon .nm{color:#9aa7b1}
+  .card.soon .ico{filter:grayscale(1);opacity:.55}
   .card .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:15px;flex:none}
   .rhead{display:flex;align-items:center;gap:10px}
   .card .ico.rg{width:46px;height:46px;overflow:hidden;padding:0}
@@ -425,18 +426,21 @@ function route(){
 $('back').onclick=()=>{location.hash=parentHash;};
 window.addEventListener('hashchange',route);
 
+// 自動更新できている地図だけ選べるようにする（status.json の coverage。読めないときは作成済みの地図すべて）
+const live=id=>!!MAPS[id]&&(!META.coverage||META.coverage.includes(id));
 function showHome(){
   setHeader('', '運行状況マップ', null, false);
   showView('view-select');
   const regionMaps=r=>CATS.map(c=>mapIdOf(r.id,c.id)).filter(id=>!NA.has(id));
+  const shinLive=live('shinkansen');
   $('pick').innerHTML=`
     <h2>新幹線</h2>
     <div class="cards">
-      <button class="card wide" data-go="shinkansen"><span class="ico rg" style="background:#e3f1fb"><svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><path d="M3 39H45" stroke="#9fb4c4" stroke-width="1.6" stroke-linecap="round"/><rect x="8" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><rect x="28" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><path d="M2 19.5H24C32.5 19.5 40 23.5 46 31.6Q46.6 34.6 43.6 34.6H2Z" fill="#fff" stroke="#2a3b4a" stroke-width="1.3" stroke-linejoin="round"/><path d="M2 28.6H41.2L43.9 31.6H2Z" fill="#1F6FC5"/><path d="M29.5 22.2C33.6 22.6 37.2 24.3 39.8 26.9H31.6Z" fill="#2b4a66"/><rect x="5" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="10.6" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="16.2" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="21.8" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><path d="M9 13H17M5 16H12" stroke="#7fb3d9" stroke-width="1.4" stroke-linecap="round"/></svg></span><div class="nm">新幹線（全国）</div></button>
+      <button class="card wide${shinLive?'':' soon'}" data-go="shinkansen"><span class="ico rg" style="background:#e3f1fb"><svg viewBox="0 0 48 48" width="46" height="46" aria-hidden="true"><path d="M3 39H45" stroke="#9fb4c4" stroke-width="1.6" stroke-linecap="round"/><rect x="8" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><rect x="28" y="34.5" width="7" height="2.6" rx="1.2" fill="#3a4a58"/><path d="M2 19.5H24C32.5 19.5 40 23.5 46 31.6Q46.6 34.6 43.6 34.6H2Z" fill="#fff" stroke="#2a3b4a" stroke-width="1.3" stroke-linejoin="round"/><path d="M2 28.6H41.2L43.9 31.6H2Z" fill="#1F6FC5"/><path d="M29.5 22.2C33.6 22.6 37.2 24.3 39.8 26.9H31.6Z" fill="#2b4a66"/><rect x="5" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="10.6" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="16.2" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><rect x="21.8" y="22.4" width="3.4" height="2.8" rx=".8" fill="#2b4a66"/><path d="M9 13H17M5 16H12" stroke="#7fb3d9" stroke-width="1.4" stroke-linecap="round"/></svg></span><div class="nm">新幹線（全国）</div>${shinLive?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>
     </div>
     <h2>地域を選ぶ</h2>
     <div class="cards">
-      ${REGIONS.map(r=>{const ready=regionMaps(r).some(id=>MAPS[id]);return `<button class="card${ready?'':' soon'}" data-go="${r.id}"><div class="rhead">${regionIcon(r.id,ready)}<div class="nm">${r.name}</div></div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
+      ${REGIONS.map(r=>{const ready=regionMaps(r).some(live);return `<button class="card${ready?'':' soon'}" data-go="${r.id}"><div class="rhead">${regionIcon(r.id,ready)}<div class="nm">${r.name}</div></div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
     </div>`;
   bindCards();
 }
@@ -468,7 +472,7 @@ function showRegion(r){
   $('pick').innerHTML=`
     <h2>種類を選ぶ</h2>
     <div class="cards">
-      ${CATS.filter(c=>!NA.has(mapIdOf(r.id,c.id))).map(c=>{const id=mapIdOf(r.id,c.id),ready=!!MAPS[id];return `<button class="card wide${ready?'':' soon'}" data-go="${id}">${catIcon(c,ready)}<div class="nm">${c.name}</div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
+      ${CATS.filter(c=>!NA.has(mapIdOf(r.id,c.id))).map(c=>{const id=mapIdOf(r.id,c.id),ready=live(id);return `<button class="card wide${ready?'':' soon'}" data-go="${id}">${catIcon(c,ready)}<div class="nm">${c.name}</div>${ready?'':'<div class="sum"><span class="status st-soon">準備中</span></div>'}</button>`;}).join('')}
     </div>`;
   bindCards();
 }
@@ -621,7 +625,6 @@ function toast(msg){toastEl.textContent=msg;toastEl.style.display='block';clearT
 // 起動
 try{load(JSON.parse($('status-data').textContent));}
 catch(e){toast('運行情報データ（JSON）の形式が正しくありません\n'+e.message);}
-route();
 // status.json を定期的に読み込み、表示中の画面を更新する
 async function fetchStatus(){
   try{
@@ -630,8 +633,10 @@ async function fetchStatus(){
     load(await r.json());
     if(M){ incidents=ALL.filter(i=>i.mapId===M.id); render(); renderList(); updateNotice(); }
     else route();
-  }catch(e){ console.warn('status.json を読み込めませんでした',e); }
+  }catch(e){ console.warn('status.json を読み込めませんでした',e); if(!started) route(); }
+  started=true;
 }
+let started=false;
 fetchStatus(); setInterval(fetchStatus,120000);
 </script>
 </body>
