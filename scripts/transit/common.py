@@ -20,12 +20,16 @@ def http_get_json(url: str, timeout: int = 20):
 SUSPEND_WORDS = ("運転見合わせ", "運転を見合わせ", "見合わせて", "運休", "運転を休止", "不通")
 DELAY_WORDS = ("遅れ", "遅延", "ダイヤが乱れ", "ダイヤ乱れ", "運転再開", "一部列車", "直通運転を中止", "折り返し運転")
 NORMAL_WORDS = ("平常どおり", "平常通り", "平常運転", "通常どおり")
+NEGATION_RE = re.compile(r"(遅延|遅れ|運転見合わせ|見合わせ|運休)(は|も|が)?(ありません|ございません|なし|発生していません|出ていません)")
 
 
 def classify(*texts: str | None) -> str | None:
     """文章から 'suspend' / 'delay' / None（平常）を判定する。"""
     text = " ".join(t for t in texts if t)
     if not text.strip():
+        return None
+    # 「15分以上の遅延はありません」のような否定は平常として扱う
+    if NEGATION_RE.search(text) and not any(w in NEGATION_RE.sub("", text) for w in SUSPEND_WORDS + DELAY_WORDS):
         return None
     if any(w in text for w in SUSPEND_WORDS):
         return "suspend"

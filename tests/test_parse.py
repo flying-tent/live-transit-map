@@ -18,6 +18,8 @@ class CommonTest(unittest.TestCase):
         self.assertEqual(classify("一部列車に遅れが出ています"), "delay")
         self.assertIsNone(classify("現在、平常どおり運転しています。"))
         self.assertIsNone(classify(""))
+        self.assertIsNone(classify("現在、１５分以上の遅延はありません。"))
+        self.assertEqual(classify("遅延はありません。一部列車に遅れが出ています"), "delay")
 
     def test_section(self):
         st = ["東京", "新橋", "品川", "大崎", "渋谷", "新宿", "池袋"]

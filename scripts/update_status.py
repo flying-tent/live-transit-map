@@ -77,7 +77,8 @@ def main() -> int:
         if not res["used"]:
             print(f"[{sid}] アクセストークン未設定のため飛ばしました")
             continue
-        maps = cfg.get("maps") or list(cfg.get("areas", {}).values())
+        # 実際にデータが届いた地図だけを「自動更新の対象」にする
+        maps = res.get("maps") if res.get("maps") is not None else (cfg.get("maps") or list(cfg.get("areas", {}).values()))
         coverage += [m for m in maps if m not in coverage]
         ok = not res["errors"]
         got = res["incidents"]

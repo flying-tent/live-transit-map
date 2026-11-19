@@ -53,7 +53,7 @@ def parse(items: list[dict], railways: dict, lines: dict, source_id: str) -> tup
 
 def fetch(config: dict, lines: dict, raw_dir: str | None = None) -> dict:
     """設定の各エンドポイントを読み、結果をまとめて返す。キーが未設定のエンドポイントは飛ばす。"""
-    incidents, unmapped, used, errors = [], [], 0, []
+    incidents, unmapped, used, errors, maps = [], [], 0, [], []
     for ep in config["endpoints"]:
         key = os.environ.get(ep["key_env"], "").strip()
         if not key:
@@ -74,7 +74,11 @@ def fetch(config: dict, lines: dict, raw_dir: str | None = None) -> dict:
             op = (it.get("odpt:operator") or "?").split(":")[-1]
             ops[op] = ops.get(op, 0) + 1
         print(f"    {ep['name']}: {len(items)} 件（会社別: {ops}）")
+        for it in items:
+            t = config["railways"].get(it.get("odpt:railway"))
+            if t and t[0] not in maps:
+                maps.append(t[0])
         inc, un = parse(items, config["railways"], lines, "odpt")
         incidents += inc
         unmapped += [u for u in un if u not in unmapped]
-    return {"used": used, "incidents": incidents, "unmapped": unmapped, "errors": errors}
+    return {"used": used, "incidents": incidents, "unmapped": unmapped, "errors": errors, "maps": maps}
