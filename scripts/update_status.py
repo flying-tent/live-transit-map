@@ -107,6 +107,9 @@ def main() -> int:
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(status, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{args.out} に {len(status['incidents'])} 件を書き出しました")
+    for i in status["incidents"]:
+        sec = f"{i['from']}〜{i['to']}" if i.get("from") else "全線"
+        print(f"    {i['map']}/{i['line']} {i['status']} {sec}: {i['detail'][:60]}")
     return 0
 
 

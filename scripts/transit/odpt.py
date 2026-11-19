@@ -69,6 +69,11 @@ def fetch(config: dict, lines: dict, raw_dir: str | None = None) -> dict:
             import json
             with open(os.path.join(raw_dir, f"odpt_{ep['id']}.json"), "w", encoding="utf-8") as f:
                 json.dump(items, f, ensure_ascii=False, indent=1)
+        ops = {}
+        for it in items:
+            op = (it.get("odpt:operator") or "?").split(":")[-1]
+            ops[op] = ops.get(op, 0) + 1
+        print(f"    {ep['name']}: {len(items)} 件（会社別: {ops}）")
         inc, un = parse(items, config["railways"], lines, "odpt")
         incidents += inc
         unmapped += [u for u in un if u not in unmapped]
