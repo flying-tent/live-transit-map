@@ -56,6 +56,7 @@
   .st-delay{background:#fff3c4;color:#7a5b00}
   .st-suspend{background:#ffe0e3;color:#b0101f}
   .st-soon{background:#e9eef1;color:#8a98a3}
+  .st-offhours{background:#e6e9f2;color:#5b6478}
 
   /* 路線図 */
   #mapWrap{flex:1;overflow:auto;position:relative;background:var(--land);-webkit-overflow-scrolling:touch}
@@ -361,8 +362,11 @@ function segment(M,line,from,to,via){
 //  データ
 // =====================================================================
 let ALL=[];      // 解決済みの運行情報（全地図）
-const LABEL={normal:'平常運転',delay:'遅延',suspend:'運転見合わせ'};
-function normStatus(s){s=String(s||'').toLowerCase();return ['suspend','stop','運転見合わせ','運休','見合わせ'].includes(s)?'suspend':'delay';}
+const LABEL={normal:'平常運転',delay:'遅延',suspend:'運転見合わせ',offhours:'運行時間外'};
+// 運行時間外：深夜（日本時間 1:00〜4:30）、または運行情報に「本日の運転は終了」などとある路線
+const isNight=()=>{const d=new Date(),h=(d.getUTCHours()+9)%24,m=d.getUTCMinutes();return h>=1&&(h<4||(h===4&&m<30));};
+const act=i=>i.status!=='offhours'&&!isNight();
+function normStatus(s){s=String(s||'').toLowerCase();if(['offhours','運行時間外','営業時間外'].includes(s))return 'offhours';return ['suspend','stop','運転見合わせ','運休','見合わせ'].includes(s)?'suspend':'delay';}
 function findLine(M,key){return M.lines.find(l=>l.id===key)||M.lines.find(l=>l.name===key||l.name.replace(/線$/,'')===String(key).replace(/線$/,''));}
 function load(data){
   const errs=[],out=[];
@@ -392,7 +396,7 @@ function updateNotice(){
 // 地図ごとの集計（路線数）
 function summary(mapIds){
   const s={suspend:new Set(),delay:new Set()};
-  ALL.filter(i=>mapIds.includes(i.mapId)).forEach(i=>s[i.status].add(i.mapId+':'+i.lineId));
+  ALL.filter(i=>mapIds.includes(i.mapId)&&act(i)).forEach(i=>s[i.status].add(i.mapId+':'+i.lineId));
   s.delay=new Set([...s.delay].filter(k=>!s.suspend.has(k)));
   return {suspend:s.suspend.size,delay:s.delay.size};
 }
@@ -521,7 +525,7 @@ function render(){
     el('path',{d:pathD(l._pts,l.loop),fill:'none',stroke:l.color,'stroke-width':5,'stroke-linejoin':'round','stroke-linecap':'round',opacity:.6});
   }
 
-  const segs=incidents.map(inc=>({inc,l:LBY[inc.lineId],pts:inc.seg.pts}));
+  const segs=incidents.filter(act).map(inc=>({inc,l:LBY[inc.lineId],pts:inc.seg.pts}));
   const gGlow=el('g',{fill:'none','stroke-linejoin':'round','stroke-linecap':'round'});
   [...segs].sort((a,b)=>(a.inc.status==='suspend')-(b.inc.status==='suspend')).forEach(({inc,pts})=>{
     const c=inc.status==='suspend'?'#ff2d3d':'#ffc81e', g=el('g',{class:'glow '+inc.status},gGlow);
@@ -536,7 +540,7 @@ function render(){
   segs.forEach(({inc,pts})=>{el('path',{d:pathD(pts,inc.seg.closed),class:'hit','stroke-width':24},gHit).addEventListener('click',e=>{e.stopPropagation();openLine(inc.lineId);});});
 
   // 駅
-  const active=new Set();incidents.forEach(i=>i.seg.names.forEach(n=>active.add(n)));
+  const active=new Set();incidents.filter(act).forEach(i=>i.seg.names.forEach(n=>active.add(n)));
   const gSt=el('g'), RAD=6.5, fs=M.fs||15;
   M._items.forEach(it=>{
     const on=active.has(it.name), fill=on?'#1f2a33':'#b2bdc6', name=it.name;
@@ -559,7 +563,7 @@ function render(){
     el('text',{x:(r.x0+r.x1)/2,y:(r.y0+r.y1)/2+fs*.37,'text-anchor':'middle',fill:'#fff','font-size':fs,'font-weight':700},gSt).textContent=name;
   });
 
-  const shown=new Set(incidents.map(i=>i.lineId)); if(selected) shown.add(selected);
+  const shown=new Set(incidents.filter(act).map(i=>i.lineId)); if(selected) shown.add(selected);
   shown.forEach(id=>{
     const l=LBY[id],[bx,by]=M._badge[id],fsb=14,sw=symW(l.sym),w=l.name.length*fsb+sw+20,h=26,g=el('g',{class:'hit'});
     el('rect',{x:bx-w/2,y:by-h/2,width:w,height:h,rx:6,fill:'#fff',stroke:'#d5dde3'},g);
@@ -571,12 +575,12 @@ function render(){
 }
 const symW=s=>/^[\x00-\x7f]+$/.test(s)?26:s.length*11+8;
 
-const statusOf=id=>{const a=incidents.filter(i=>i.lineId===id);return a.some(i=>i.status==='suspend')?'suspend':a.length?'delay':'normal';};
+const statusOf=id=>{if(isNight())return 'offhours';const all=incidents.filter(i=>i.lineId===id),a=all.filter(act);return a.some(i=>i.status==='suspend')?'suspend':a.length?'delay':all.length?'offhours':'normal';};
 function renderList(){
-  const order={suspend:0,delay:1,normal:2};
+  const order={suspend:0,delay:1,normal:2,offhours:3};
   const rows=[...M.lines].sort((a,b)=>order[statusOf(a.id)]-order[statusOf(b.id)]);
   $('list').innerHTML=rows.map(l=>{
-    const st=statusOf(l.id),inc=incidents.filter(i=>i.lineId===l.id);
+    const st=statusOf(l.id),inc=incidents.filter(i=>i.lineId===l.id&&act(i));
     const sec=inc.map(i=>i.from&&i.to?`${i.from}〜${i.to}`:'全線').join('、');
     return `<div class="row${selected===l.id?' sel':''}" data-id="${l.id}"><span class="sym" style="background:${l.color}">${l.sym}</span><div><div class="name">${l.name}</div>${sec?`<div class="sec">${sec}</div>`:''}</div><span class="status st-${st}">${LABEL[st]}</span></div>`;
   }).join('');
@@ -587,9 +591,9 @@ const sheet=$('sheet');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function openLine(id){
   const l=LBY[id]; selectLine(id,false);
-  const inc=incidents.filter(i=>i.lineId===id),st=statusOf(id);
+  const st=statusOf(id),inc=incidents.filter(i=>i.lineId===id&&(st==='offhours'?i.status==='offhours':act(i)));
   sheet.innerHTML=`<div class="head"><span class="sym" style="background:${l.color}">${l.sym}</span><span class="title">${l.name}</span><span class="status st-${st}">${LABEL[st]}</span><button class="close" aria-label="閉じる">×</button></div>
-  <div class="body">${inc.length?inc.map(i=>`<div class="item"><b>${i.from&&i.to?esc(i.from)+'〜'+esc(i.to):'全線'}：${LABEL[i.status]}</b><div>${esc(i.detail||'')}</div><div class="meta">${i.since?`<span>発生 ${esc(i.since)}</span>`:''}${i.expected?`<span>再開見込み ${esc(i.expected)}</span>`:''}</div></div>`).join(''):'<div>現在、平常どおり運転しています。</div>'}</div>`;
+  <div class="body">${inc.length?inc.map(i=>`<div class="item"><b>${i.from&&i.to?esc(i.from)+'〜'+esc(i.to):'全線'}：${LABEL[i.status]}</b><div>${esc(i.detail||'')}</div><div class="meta">${i.since?`<span>発生 ${esc(i.since)}</span>`:''}${i.expected?`<span>再開見込み ${esc(i.expected)}</span>`:''}</div></div>`).join(''):st==='offhours'?'<div>現在は運行時間外です。</div>':'<div>現在、平常どおり運転しています。</div>'}</div>`;
   sheet.querySelector('.close').onclick=()=>closeSheet();
   sheet.classList.add('open');
 }

@@ -19,6 +19,8 @@ class CommonTest(unittest.TestCase):
         self.assertIsNone(classify("現在、平常どおり運転しています。"))
         self.assertIsNone(classify(""))
         self.assertIsNone(classify("現在、１５分以上の遅延はありません。"))
+        self.assertEqual(classify("本日の運転は終了しました。"), "offhours")
+        self.assertEqual(classify("本日の運転は終了しました。運転見合わせ中の区間があります"), "suspend")
         self.assertEqual(classify("遅延はありません。一部列車に遅れが出ています"), "delay")
 
     def test_section(self):

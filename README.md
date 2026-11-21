@@ -71,7 +71,8 @@ python -m unittest discover -s tests
 }
 ```
 
-- `status` … `suspend`（運転見合わせ・赤点滅）/ `delay`（遅延・黄色点灯）
+- `status` … `suspend`（運転見合わせ・赤点滅）/ `delay`（遅延・黄色点灯）/ `offhours`（運行時間外・光らせない）
+- 日本時間 1:00〜4:30 は、全路線を「運行時間外」として表示します
 - `from` / `to` を省くと路線全体
 - 地図ID … `shinkansen` または `{地域}-{種別}`（地域 = hokkaido / tohoku / shutoken / tokai / kansai / chugoku / kyushu、種別 = jr / subway / private）
 
