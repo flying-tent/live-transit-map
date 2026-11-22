@@ -922,6 +922,7 @@ MAPS['shutoken-subway']={
   focus:[1400,900],
   mscale:0.7,
   rank:["ginza","marunouchi","hibiya","tozai","chiyoda","yurakucho","hanzomon","namboku","fukutoshin","asakusa","mita","shinjuku","oedo"],
+  landmarks:[{type:"palace",name:"皇居",x:1240,y:860,w:160,h:80},{type:"skytree",name:"東京スカイツリー",x:2080,y:300},{type:"tower",name:"東京タワー",x:1240,y:1372}],
   st:{
     '和光市':[120,240],
     '小竹向原':[520,240],
