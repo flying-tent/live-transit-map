@@ -44,6 +44,12 @@ def optimize(M: dict, grid: int, radius: int = 2, passes: int = 6) -> None:
             M[f] = [M[f][0] * k, M[f][1] * k]
     if M.get("texts"):
         M["texts"] = [[x * k, y * k, t] for x, y, t in M["texts"]]
+    for L in M.get("landmarks", []):
+        if "pts" in L:
+            L["pts"] = [[x * k, y * k] for x, y in L["pts"]]
+        for f in ("x", "y"):
+            if f in L:
+                L[f] = L[f] * k
 
     nbrs = {n: set() for n in st}
     for l in M["lines"]:

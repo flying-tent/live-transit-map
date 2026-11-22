@@ -185,6 +185,7 @@ Object.entries(MAPS).forEach(([id,M])=>{
     M.lines.forEach(l=>{l.nodes=l.nodes.map(n=>typeof n==='string'?n:[n[0]*k,n[1]*k]);if(l.badge)l.badge=[l.badge[0]*k,l.badge[1]*k];});
     ['center','focus'].forEach(f=>{if(M[f])M[f]=[M[f][0]*k,M[f][1]*k];});
     M.texts=(M.texts||[]).map(([x,y,t])=>[x*k,y*k,t]);
+    M.landmarks=(M.landmarks||[]).map(L=>L.pts?{...L,pts:L.pts.map(([x,y])=>[x*k,y*k])}:{...L,x:L.x*k,y:L.y*k});
   }
   const xs=Object.values(M.st).map(v=>v[0]),ys=Object.values(M.st).map(v=>v[1]);
   const b=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
@@ -508,6 +509,47 @@ function showMap(id){
   requestAnimationFrame(()=>{ wrap.clientWidth<820 ? setScale(M.mobile.scale,M.mobile.cx,M.mobile.cy) : setScale(fitScale(),M.vb[0]+M.vb[2]/2,M.vb[1]+M.vb[3]/2); });
 }
 
+// ランドマーク（皇居・タワーなど）。線路の下に描き、タップは受けない
+//   palace … {type:'palace',name,pts:[[x,y],...]}（線路を避けた多角形。お濠の分だけ外側に広がる）
+//   skytree / tower … {type,name,x,y}（x,y は塔の根元）
+function drawLandmark(L){
+  const g=el('g',{class:'landmark','pointer-events':'none'});
+  const lab=(x,y,t,anchor='middle',fz=13)=>{
+    el('text',{x,y,'text-anchor':anchor,fill:'#5f6f7b','font-size':fz,'font-weight':700,stroke:'#f7f9fa','stroke-width':4,'paint-order':'stroke','stroke-linejoin':'round'},g).textContent=t;};
+  const {x,y}=L;
+  if(L.type==='palace'){
+    const P=L.pts, d=pathD(P,true);
+    el('path',{d,fill:'#bfe6fb',stroke:'#bfe6fb','stroke-width':16,'stroke-linejoin':'round'},g); // お濠
+    el('path',{d,fill:'#cfe8c4',stroke:'#cfe8c4','stroke-width':4,'stroke-linejoin':'round'},g);  // 緑地
+    // 面積の重心に名前、まわりに木
+    let A=0,cx=0,cy=0;
+    P.forEach((p,i)=>{const q=P[(i+1)%P.length],c=p[0]*q[1]-q[0]*p[1];A+=c;cx+=(p[0]+q[0])*c;cy+=(p[1]+q[1])*c;});
+    cx/=3*A; cy/=3*A;
+    const inside=(x,y)=>P.reduce((o,p,i)=>{const q=P[(i+1)%P.length];return ((p[1]>y)!==(q[1]>y))&&x<(q[0]-p[0])*(y-p[1])/(q[1]-p[1])+p[0]?!o:o;},false);
+    const far=(x,y)=>P.every((p,i)=>{const q=P[(i+1)%P.length],dx=q[0]-p[0],dy=q[1]-p[1],t=Math.max(0,Math.min(1,((x-p[0])*dx+(y-p[1])*dy)/(dx*dx+dy*dy)));return Math.hypot(x-p[0]-t*dx,y-p[1]-t*dy)>12;});
+    for(const [dx,dy] of [[-44,-30],[34,-34],[-52,22],[52,26],[2,40],[-14,-58]]){
+      const x=cx+dx,y=cy+dy; if(inside(x,y)&&far(x,y)) el('circle',{cx:x,cy:y,r:7,fill:'#a9d49a'},g);
+    }
+    lab(cx,cy+6,L.name,'middle',17);
+  }else if(L.type==='skytree'){
+    const top=y-82;
+    el('ellipse',{cx:x,cy:y,rx:15,ry:3,fill:'#d5dde3'},g);
+    el('path',{d:`M${x-11},${y}L${x-2.5},${top+18}L${x+2.5},${top+18}L${x+11},${y}Z`,fill:'#9fb8c8'},g);
+    el('rect',{x:x-6,y:top+36,width:12,height:6,rx:2,fill:'#6f8ea3'},g);
+    el('rect',{x:x-4.5,y:top+16,width:9,height:5,rx:2,fill:'#6f8ea3'},g);
+    el('path',{d:`M${x},${top}L${x},${top+18}`,stroke:'#6f8ea3','stroke-width':2.5},g);
+    lab(x,y+18,L.name);
+  }else if(L.type==='tower'){
+    const top=y-58, R='#e8452c';
+    el('ellipse',{cx:x,cy:y,rx:18,ry:3,fill:'#d5dde3'},g);
+    el('path',{d:`M${x-16},${y}Q${x-5},${y-18} ${x-1.5},${top+8}L${x+1.5},${top+8}Q${x+5},${y-18} ${x+16},${y}L${x+8},${y}Q${x},${y-12} ${x-8},${y}Z`,fill:R},g);
+    el('rect',{x:x-8,y:y-26,width:16,height:4,rx:1,fill:'#fff',stroke:R,'stroke-width':1.5},g);
+    el('rect',{x:x-5,y:top+14,width:10,height:3.5,rx:1,fill:'#fff',stroke:R,'stroke-width':1.5},g);
+    el('path',{d:`M${x},${top}L${x},${top+9}`,stroke:R,'stroke-width':2},g);
+    lab(x,y+18,L.name);
+  }
+}
+
 function render(){
   svg.innerHTML='';
   prepare(M);
@@ -516,6 +558,7 @@ function render(){
   el('rect',{x:vx,y:vy,width:vw,height:vh,fill:'#f7f9fa'});
   M.water.forEach(d=>el('path',{d,fill:'#bfe6fb'}));
   M.texts.forEach(([x,y,t])=>{el('text',{x,y,fill:'#8fcbec','font-size':22,'font-weight':700,'letter-spacing':'0.3em'}).textContent=t;});
+  (M.landmarks||[]).forEach(drawLandmark);
 
   const gBase=el('g',{fill:'none',stroke:'#c3ccd3','stroke-width':5.5,'stroke-linejoin':'round','stroke-linecap':'round'});
   M.lines.forEach(l=>el('path',{d:pathD(l._pts,l.loop)},gBase));
