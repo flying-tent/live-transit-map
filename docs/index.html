@@ -624,7 +624,7 @@ function renderList(){
   const rows=[...M.lines].sort((a,b)=>order[statusOf(a.id)]-order[statusOf(b.id)]);
   $('list').innerHTML=rows.map(l=>{
     const st=statusOf(l.id),inc=incidents.filter(i=>i.lineId===l.id&&act(i));
-    const sec=inc.map(i=>i.from&&i.to?`${i.from}〜${i.to}`:'全線').join('、');
+    const sec=inc.map(i=>i.from&&i.to?`${esc(i.from)}〜${esc(i.to)}`:'全線').join('、');
     return `<div class="row${selected===l.id?' sel':''}" data-id="${l.id}"><span class="sym" style="background:${l.color}">${l.sym}</span><div><div class="name">${l.name}</div>${sec?`<div class="sec">${sec}</div>`:''}</div><span class="status st-${st}">${LABEL[st]}</span></div>`;
   }).join('');
   document.querySelectorAll('.row').forEach(r=>r.onclick=()=>{selectLine(r.dataset.id,true);openLine(r.dataset.id);});
