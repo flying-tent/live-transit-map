@@ -1,0 +1,22 @@
+# GitHub Actions のバージョンを自動で更新する設定
+# 新しい版が出ると、SHA と「# v4.x.x」のコメントを書き換えるプルリクを Dependabot が作ります
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+    # 新しい版が出てもすぐには取り込まず、7日待つ（サプライチェーン攻撃対策）
+    # 乗っ取られて悪意のある版が出ても、たいてい数日で見つかって取り下げられるため
+    cooldown:
+      default-days: 7
+    # 更新はまとめて1つのプルリクにする（通知を減らすため）
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(actions)"
